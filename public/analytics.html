@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics — vishalrathod.pages.dev</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050505; --surface: #0e0e0e; --border: rgba(255,255,255,0.065);
+      --accent: #c8ff00; --red: #ff4d00; --white: #f0f0f0;
+      --gray: #888; --dim: #555; --sans: 'Space Grotesk', system-ui, sans-serif;
+      --mono: 'Space Mono', 'Consolas', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--white); font-family: var(--sans); min-height: 100vh; }
+    ::selection { background: var(--accent); color: var(--bg); }
+
+    /* AUTH OVERLAY */
+    #auth {
+      position: fixed; inset: 0; z-index: 999; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+    }
+    #auth.hidden { display: none; }
+    #auth h1 { font-family: var(--mono); font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gray); }
+    #auth input {
+      background: var(--surface); border: 1px solid var(--border); color: var(--white);
+      font-family: var(--mono); font-size: 14px; padding: 14px 24px; width: 320px;
+      outline: none; transition: border-color .3s;
+    }
+    #auth input:focus { border-color: var(--accent); }
+    #auth button {
+      background: var(--accent); color: var(--bg); border: none;
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 14px 36px; cursor: pointer; transition: opacity .3s;
+    }
+    #auth button:hover { opacity: 0.85; }
+    #auth-error { color: var(--red); font-size: 12px; font-family: var(--mono); display: none; }
+
+    /* LAYOUT */
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 36px; flex-wrap: wrap; gap: 12px;
+    }
+    .top-bar h1 { font-family: var(--mono); font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
+    .top-bar h1 em { font-style: normal; color: var(--accent); }
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+    .top-actions select, .top-actions button {
+      background: var(--surface); border: 1px solid var(--border); color: var(--gray);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 8px 14px; cursor: pointer; transition: border-color .3s, color .3s;
+    }
+    .top-actions select:hover, .top-actions button:hover { border-color: var(--accent); color: var(--white); }
+    .top-actions select { -webkit-appearance: none; appearance: none; padding-right: 24px; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* CARDS */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 22px 20px; border-radius: 6px; position: relative; overflow: hidden;
+    }
+    .card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .card.c-total::after { background: var(--accent); }
+    .card.c-human::after { background: #00ff88; }
+    .card.c-bot::after { background: var(--red); }
+    .card.c-unique::after { background: #8844ff; }
+    .card.c-countries::after { background: #00ccff; }
+    .card-label {
+      font-family: var(--mono); font-size: 9px; color: var(--dim);
+      letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .card-val { font-size: 32px; font-weight: 700; line-height: 1; }
+    .card.c-total .card-val { color: var(--accent); }
+    .card.c-human .card-val { color: #00ff88; }
+    .card.c-bot .card-val { color: var(--red); }
+    .card.c-unique .card-val { color: #8844ff; }
+    .card.c-countries .card-val { color: #00ccff; }
+    .card-sub { font-size: 11px; color: var(--dim); margin-top: 6px; font-family: var(--mono); }
+
+    /* SECTION */
+    .section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; margin-bottom: 20px; overflow: hidden;
+    }
+    .section-head {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .section-title {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      letter-spacing: 0.15em; text-transform: uppercase;
+    }
+    .section-body { padding: 16px 20px; }
+
+    /* CHART */
+    .chart-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+    .chart-label {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      width: 72px; text-align: right; flex-shrink: 0;
+    }
+    .chart-track { flex: 1; height: 22px; background: rgba(255,255,255,0.02); border-radius: 2px; display: flex; overflow: hidden; }
+    .chart-human { background: rgba(200,255,0,0.7); height: 100%; transition: width .4s ease; }
+    .chart-bot { background: rgba(255,77,0,0.7); height: 100%; transition: width .4s ease; }
+    .chart-unknown { background: rgba(136,136,136,0.4); height: 100%; transition: width .4s ease; }
+    .chart-count {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      width: 40px; text-align: right; flex-shrink: 0;
+    }
+    .chart-legend { display: flex; gap: 18px; margin-top: 14px; }
+    .chart-legend span {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chart-legend .dot { width: 8px; height: 8px; border-radius: 2px; }
+
+    /* FILTERS */
+    .filters { display: flex; gap: 6px; }
+    .filters button {
+      background: transparent; border: 1px solid var(--border); color: var(--dim);
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 5px 12px; cursor: pointer; border-radius: 3px; transition: all .2s;
+    }
+    .filters button.active { border-color: var(--accent); color: var(--accent); }
+    .filters button:hover { color: var(--white); border-color: rgba(255,255,255,0.2); }
+
+    /* TABLE */
+    .table-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th {
+      font-family: var(--mono); font-size: 9px; color: var(--dim);
+      letter-spacing: 0.12em; text-transform: uppercase; text-align: left;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface); z-index: 2;
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.025); color: #aaa; white-space: nowrap; font-size: 12px; }
+    tr:hover td { background: rgba(200,255,0,0.015); }
+    .type-badge {
+      display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px;
+    }
+    .type-human { background: rgba(0,255,136,0.1); color: #00ff88; }
+    .type-bot { background: rgba(255,77,0,0.1); color: var(--red); }
+    .type-unknown { background: rgba(136,136,136,0.1); color: var(--gray); }
+
+    /* SIDE LISTS */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .list-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.025);
+      font-size: 12px;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-name { color: #ccc; }
+    .list-count { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+    /* EMPTY STATE */
+    .empty {
+      text-align: center; padding: 48px 20px;
+      font-family: var(--mono); font-size: 12px; color: var(--dim);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .two-col { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: repeat(2, 1fr); }
+      .wrap { padding: 16px 12px 48px; }
+    }
+    @media (max-width: 480px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH -->
+  <div id="auth">
+    <h1>Analytics Dashboard</h1>
+    <input type="password" id="auth-key" placeholder="Enter analytics key" autocomplete="off">
+    <button id="auth-btn">Access</button>
+    <div id="auth-error">Invalid key. Try again.</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="wrap" id="dashboard" style="display:none">
+    <div class="top-bar">
+      <h1><em>&#9670;</em> Analytics Dashboard</h1>
+      <div class="top-actions">
+        <div class="live-dot" title="Auto-refreshing"></div>
+        <select id="range">
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="60">Last 60 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <button id="refresh-btn">&#8635; Refresh</button>
+      </div>
+    </div>
+
+    <!-- CARDS -->
+    <div class="cards">
+      <div class="card c-total"><div class="card-label">Total Visits</div><div class="card-val" id="c-total">—</div><div class="card-sub" id="c-total-sub"></div></div>
+      <div class="card c-human"><div class="card-label">Human Visits</div><div class="card-val" id="c-human">—</div><div class="card-sub" id="c-human-sub"></div></div>
+      <div class="card c-bot"><div class="card-label">Bots Detected</div><div class="card-val" id="c-bot">—</div><div class="card-sub" id="c-bot-sub"></div></div>
+      <div class="card c-unique"><div class="card-label">Unique Visitors</div><div class="card-val" id="c-unique">—</div><div class="card-sub">(period)</div></div>
+      <div class="card c-countries"><div class="card-label">Countries</div><div class="card-val" id="c-countries">—</div><div class="card-sub">(period)</div></div>
+    </div>
+
+    <!-- CHART -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Daily Visits</div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background:rgba(200,255,0,0.7)"></span> Human</span>
+          <span><span class="dot" style="background:rgba(255,77,0,0.7)"></span> Bot</span>
+          <span><span class="dot" style="background:rgba(136,136,136,0.4)"></span> Unknown</span>
+        </div>
+      </div>
+      <div class="section-body" id="chart"></div>
+    </div>
+
+    <!-- VISITORS TABLE -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Recent Visitors</div>
+        <div class="filters">
+          <button class="active" data-filter="all">All</button>
+          <button data-filter="human">Humans</button>
+          <button data-filter="bot">Bots</button>
+          <button data-filter="unknown">Unknown</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Location</th>
+              <th>IP Range</th>
+              <th>ISP / Network</th>
+              <th>Device</th>
+              <th>Page</th>
+              <th>Referrer</th>
+            </tr>
+          </thead>
+          <tbody id="visitors-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BREAKDOWNS -->
+    <div class="two-col">
+      <div class="section">
+        <div class="section-head"><div class="section-title">Top Countries</div></div>
+        <div class="section-body" id="top-countries"></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><div class="section-title">Top Referrers</div></div>
+        <div class="section-body" id="top-referrers"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --- Country names map (common codes) ---
+  const COUNTRIES = {
+    IN:'India',US:'United States',GB:'United Kingdom',DE:'Germany',FR:'France',CA:'Canada',
+    AU:'Australia',JP:'Japan',CN:'China',BR:'Brazil',RU:'Russia',KR:'South Korea',NL:'Netherlands',
+    SG:'Singapore',SE:'Sweden',IT:'Italy',ES:'Spain',MX:'Mexico',ID:'Indonesia',PL:'Poland',
+    TR:'Turkey',TW:'Taiwan',TH:'Thailand',PH:'Philippines',MY:'Malaysia',VN:'Vietnam',
+    ZA:'South Africa',NG:'Nigeria',EG:'Egypt',AE:'UAE',SA:'Saudi Arabia',PK:'Pakistan',
+    BD:'Bangladesh',LK:'Sri Lanka',NP:'Nepal',IL:'Israel',UA:'Ukraine',RO:'Romania',
+    CZ:'Czech Republic',HU:'Hungary',AT:'Austria',CH:'Switzerland',BE:'Belgium',PT:'Portugal',
+    DK:'Denmark',FI:'Finland',NO:'Norway',IE:'Ireland',NZ:'New Zealand',AR:'Argentina',
+    CL:'Chile',CO:'Colombia',PE:'Peru',HK:'Hong Kong',KE:'Kenya',GH:'Ghana',UG:'Uganda',
+  };
+
+  function countryName(code) {
+    if (!code) return 'Unknown';
+    return COUNTRIES[code] || code;
+  }
+
+  function timeAgo(ts) {
+    const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return diff + 's ago';
+    const m = Math.floor(diff / 60);
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    const d = Math.floor(h / 24);
+    if (d < 30) return d + 'd ago';
+    return new Date(ts).toLocaleDateString();
+  }
+
+  function parseUA(ua) {
+    if (!ua) return { browser: '—', os: '—' };
+    let browser = 'Other', os = 'Other';
+    if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Edg\//i.test(ua)) browser = 'Edge';
+    else if (/OPR\//i.test(ua)) browser = 'Opera';
+    else if (/Chrome\//i.test(ua) && !/Chromium/i.test(ua)) browser = 'Chrome';
+    else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+    else if (/bot|crawl|spider/i.test(ua)) browser = 'Bot';
+
+    if (/Windows/i.test(ua)) os = 'Win';
+    else if (/Macintosh|Mac OS/i.test(ua)) os = 'Mac';
+    else if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad/i.test(ua)) os = 'iOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+    else if (/CrOS/i.test(ua)) os = 'ChromeOS';
+
+    return { browser, os };
+  }
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  function num(n) {
+    return (n || 0).toLocaleString();
+  }
+
+  // --- Auth ---
+  const authDiv = document.getElementById('auth');
+  const dashboard = document.getElementById('dashboard');
+  const keyInput = document.getElementById('auth-key');
+  const authBtn = document.getElementById('auth-btn');
+  const authError = document.getElementById('auth-error');
+  let API_KEY = sessionStorage.getItem('analytics_key') || '';
+
+  if (API_KEY) {
+    tryAuth(API_KEY);
+  }
+
+  authBtn.addEventListener('click', () => tryAuth(keyInput.value.trim()));
+  keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(keyInput.value.trim()); });
+
+  async function tryAuth(key) {
+    if (!key) return;
+    try {
+      const res = await fetch('/api/analytics?key=' + encodeURIComponent(key) + '&days=1');
+      if (res.ok) {
+        API_KEY = key;
+        sessionStorage.setItem('analytics_key', key);
+        authDiv.classList.add('hidden');
+        dashboard.style.display = '';
+        loadData();
+      } else {
+        authError.style.display = 'block';
+        sessionStorage.removeItem('analytics_key');
+      }
+    } catch {
+      authError.style.display = 'block';
+    }
+  }
+
+  // --- Data Loading ---
+  let currentFilter = 'all';
+  let currentData = null;
+
+  document.getElementById('refresh-btn').addEventListener('click', loadData);
+  document.getElementById('range').addEventListener('change', loadData);
+
+  // Filter buttons
+  document.querySelectorAll('.filters button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      if (currentData) renderTable(currentData.recentVisits);
+    });
+  });
+
+  // Auto-refresh every 60s
+  setInterval(() => { if (API_KEY && !document.hidden) loadData(); }, 60000);
+
+  async function loadData() {
+    const days = document.getElementById('range').value;
+    try {
+      const res = await fetch('/api/analytics?key=' + encodeURIComponent(API_KEY) + '&days=' + days);
+      if (!res.ok) return;
+      currentData = await res.json();
+      render(currentData);
+    } catch { /* silently retry next interval */ }
+  }
+
+  function render(data) {
+    const { stats, dailySummaries, recentVisits, topCountries, topReferrers } = data;
+
+    // Cards
+    document.getElementById('c-total').textContent = num(stats.total);
+    document.getElementById('c-total-sub').textContent = 'all time';
+    document.getElementById('c-human').textContent = num(stats.humans);
+    document.getElementById('c-human-sub').textContent = stats.total ? ((stats.humans / stats.total * 100).toFixed(1) + '%') : '';
+    document.getElementById('c-bot').textContent = num(stats.bots);
+    document.getElementById('c-bot-sub').textContent = stats.total ? ((stats.bots / stats.total * 100).toFixed(1) + '%') : '';
+
+    // Unique visitors in period
+    const uniqueSet = new Set();
+    recentVisits.forEach(v => { if (v.vid) uniqueSet.add(v.vid); });
+    document.getElementById('c-unique').textContent = num(uniqueSet.size);
+
+    // Countries
+    document.getElementById('c-countries').textContent = num(topCountries.length);
+
+    // Chart
+    renderChart(dailySummaries);
+
+    // Table
+    renderTable(recentVisits);
+
+    // Top Countries
+    const countriesEl = document.getElementById('top-countries');
+    if (topCountries.length === 0) {
+      countriesEl.innerHTML = '<div class="empty">No data yet</div>';
+    } else {
+      countriesEl.innerHTML = topCountries.map(c =>
+        `<div class="list-item"><span class="list-name">${esc(countryName(c.code))} (${esc(c.code)})</span><span class="list-count">${num(c.count)}</span></div>`
+      ).join('');
+    }
+
+    // Top Referrers
+    const refEl = document.getElementById('top-referrers');
+    if (topReferrers.length === 0) {
+      refEl.innerHTML = '<div class="empty">No referrer data</div>';
+    } else {
+      refEl.innerHTML = topReferrers.map(r =>
+        `<div class="list-item"><span class="list-name">${esc(r.host)}</span><span class="list-count">${num(r.count)}</span></div>`
+      ).join('');
+    }
+  }
+
+  function renderChart(summaries) {
+    const chartEl = document.getElementById('chart');
+    const days = parseInt(document.getElementById('range').value);
+    const rows = [];
+    let maxTotal = 1;
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const s = summaries[key] || { total: 0, humans: 0, bots: 0, unknown: 0 };
+      if (s.total > maxTotal) maxTotal = s.total;
+      rows.push({ label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), ...s });
+    }
+
+    if (rows.every(r => r.total === 0)) {
+      chartEl.innerHTML = '<div class="empty">No visits recorded yet</div>';
+      return;
+    }
+
+    chartEl.innerHTML = rows.map(r => {
+      const hw = (r.humans / maxTotal * 100).toFixed(1);
+      const bw = (r.bots / maxTotal * 100).toFixed(1);
+      const uw = ((r.unknown || 0) / maxTotal * 100).toFixed(1);
+      return `<div class="chart-row">
+        <span class="chart-label">${esc(r.label)}</span>
+        <div class="chart-track">
+          <div class="chart-human" style="width:${hw}%" title="${r.humans} humans"></div>
+          <div class="chart-bot" style="width:${bw}%" title="${r.bots} bots"></div>
+          <div class="chart-unknown" style="width:${uw}%" title="${r.unknown || 0} unknown"></div>
+        </div>
+        <span class="chart-count">${r.total}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderTable(visits) {
+    const tbody = document.getElementById('visitors-table');
+    const filtered = currentFilter === 'all' ? visits : visits.filter(v => v.type === currentFilter);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No visits to show</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.slice(0, 300).map(v => {
+      const { browser, os } = parseUA(v.ua);
+      const loc = [v.city, v.region, v.country].filter(Boolean).join(', ') || 'Unknown';
+      const badgeClass = v.type === 'human' ? 'type-human' : v.type === 'bot' ? 'type-bot' : 'type-unknown';
+      const typeLabel = v.type === 'human' ? '&#128100; Human' : v.type === 'bot' ? '&#129302; Bot' : '? Unknown';
+      const refDisplay = v.ref ? (() => { try { return new URL(v.ref).hostname.replace(/^www\./, ''); } catch { return v.ref; } })() : '—';
+      return `<tr>
+        <td title="${esc(v.ts)}">${esc(timeAgo(v.ts))}</td>
+        <td><span class="type-badge ${badgeClass}">${typeLabel}</span></td>
+        <td>${esc(loc)}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--dim)">${esc(v.ip)}</td>
+        <td style="font-size:11px">${esc(v.asOrg || '—')}</td>
+        <td>${esc(browser)} / ${esc(os)}</td>
+        <td style="font-family:var(--mono);font-size:11px">${esc(v.url)}</td>
+        <td style="font-size:11px">${esc(refDisplay)}</td>
+      </tr>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
